@@ -41,14 +41,14 @@ pub struct Transaction {
     pub to_token: String,
 }
 
-pub fn find_mint_by_token_amount(transfers: &[TokenTransfer], amount: f64) -> Option<String> {
+pub fn find_mint_by_token_amount(transfers: &[TokenTransfer], amount: f64) -> String {
     // Iterate through the transfers to find the mint for the specified token amount
     for transfer in transfers {
         if (transfer.token_amount - amount).abs() < f64::EPSILON {
-            return Some(transfer.mint.clone());
+            return transfer.mint.clone();
         }
     }
-    None
+    return String::from("unknown");
 }
 
 pub fn parse_description(input: &str) -> Option<TransactionMeta> {
@@ -90,18 +90,20 @@ pub fn parse_transaction(intput: &str) -> Option<Transaction> {
         .unwrap()
         .as_str()
         .unwrap();
-    let transaction = parse_description(description).unwrap();
+    let transaction = parse_description(description).unwrap_or_else(|| TransactionMeta {
+        sender: String::from("unknown"),
+        from_amount: 0.0,
+        to_amount: 0.0,
+        from_token: String::from("unknown"),
+        to_token: String::from("unknown"),
+    });
 
     let transfers: Vec<TokenTransfer> =
         serde_json::from_value(parsed_transfer["tokenTransfers"].clone())
             .expect("Failed to parse tokenTransfers");
 
-    let from_token = find_mint_by_token_amount(&transfers, transaction.from_amount)
-        .unwrap()
-        .to_string();
-    let to_token = find_mint_by_token_amount(&transfers, transaction.to_amount)
-        .unwrap()
-        .to_string();
+    let from_token = find_mint_by_token_amount(&transfers, transaction.from_amount).to_string();
+    let to_token = find_mint_by_token_amount(&transfers, transaction.to_amount).to_string();
 
     let timestamp: u64 = parsed_transfer
         .get("timestamp")
